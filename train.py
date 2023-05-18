@@ -60,6 +60,9 @@ def main():
         "split_fraction": [args.ttsplit, 1 - args.ttsplit, 0],
     }
 
+    # print('Data args:',data_args)
+    # exit()
+
     X_train = JetNet(**data_args, split="train")
     X_train_loaded = DataLoader(X_train, shuffle=True, batch_size=args.batch_size, pin_memory=True)
 
@@ -199,11 +202,16 @@ def gen(
         labels = labels.to(device)
 
     if noise is None:
-        noise, point_noise = get_gen_noise(
-            model_args, num_samples, num_particles, model, device, noise_std
-        )
+        if G.learnable_init_noise:
+            noise = G.sample_init_set(num_samples).to(device)
+        else:
+            noise, point_noise = get_gen_noise(
+                model_args, num_samples, num_particles, model, device, noise_std
+            )
 
-    gen_data = G(noise, labels)
+    global_noise = torch.randn(num_samples, model_args['global_noise_dim']).to(device) if G.noise_conditioning else None
+
+    gen_data = G(noise, labels, global_noise)
 
     if "mask_manual" in extra_args and extra_args["mask_manual"]:
         # TODO: add pt_cutoff to extra_args
@@ -562,7 +570,6 @@ def evaluate(
             exclude_zeros=True,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
-            average_over_features=False,
             return_std=True,
         )
         losses["w1p"].append(np.concatenate((w1pm, w1pstd)))
@@ -584,7 +591,6 @@ def evaluate(
             use_particle_masses=False,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
-            average_over_efps=False,
             return_std=True,
             efp_jobs=efp_jobs,
         )
@@ -599,9 +605,13 @@ def evaluate(
             )
         )
 
-    # coming soon
-    # if "fpd" in losses:
-    #     losses["fpd"].append(evaluation.fpd(real_efps, gen_efps, n_jobs=efp_jobs))
+    if "fpd" in losses:
+        logging.info("FPD")
+        losses["fpd"].append(evaluation.fpd(real_efps, gen_efps))
+
+    if "kpd" in losses:
+        logging.info("KPD")
+        losses["kpd"].append(evaluation.kpd(real_efps, gen_efps, num_threads=2))
 
 
 def make_plots(
@@ -625,6 +635,8 @@ def make_plots(
     gen_efps=None,
 ):
     """Plot histograms, jet images, loss curves, and evaluation curves"""
+    logging.info("Plotting")
+
     real_masses = jetnet.utils.jet_features(real_jets)["mass"]
     gen_masses = jetnet.utils.jet_features(gen_jets)["mass"]
 
@@ -791,8 +803,8 @@ def eval_save_plot(
 
     if "fpd" in losses:
         # save model state and sample generated jets if this is the lowest fpd score yet
-        if epoch > 0 and (losses["fpd"][-1][0] + losses["fpd"][-1][1]) < best_epoch[-1][1]:
-            best_epoch.append([epoch, losses["fpd"][-1][0] + losses["fpd"][-1][1]])
+        if epoch > 0 and (losses["fpd"][-1][0]) < best_epoch[-1][1]:
+            best_epoch.append([epoch, losses["fpd"][-1][0]])
             np.savetxt(f"{args.outs_path}/best_epoch.txt", np.array(best_epoch))
 
             np.save(f"{args.outs_path}/best_epoch_gen_jets", gen_jets)

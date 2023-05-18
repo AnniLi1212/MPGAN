@@ -418,14 +418,19 @@ def plot_eval(
         fig.add_subplot(3, 3, 5)
         plt.plot(x, means)
         plt.xlabel("Epoch")
-        plt.ylabel(r"$\overline{\mathrm{FGD}}_{\infty}$")
+        plt.ylabel(r"FPD")
         plt.yscale("log")
         plt.ylim(top=10)
 
+    if "kpd" in losses:
+        means = np.array(losses["kpd"])[:, 0]
+        stds = np.array(losses["kpd"])[:, 1]
+
+        # plot mean + 1 sigma values to avoid -ve values in log plot
         fig.add_subplot(3, 3, 6)
         plt.plot(x, means + stds)
         plt.xlabel("Epoch")
-        plt.ylabel(r"$\overline{\mathrm{FGD}}_{\infty}^{+\sigma}$")
+        plt.ylabel(r"KP$D^{+\sigma}$")
         plt.yscale("log")
         plt.ylim(top=10)
 
