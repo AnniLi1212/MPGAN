@@ -202,14 +202,9 @@ def parse_args():
 def parse_optimization_args(parser):
     parser.add_argument(
         "--optimizer",
-        "--optimizer",
-        type=str,
         type=str,
         default="rmsprop",
-        default="rmsprop",
         help="pick optimizer",
-        help="pick optimizer",
-        choices=["adam", "rmsprop", "adadelta", "agcd"],
         choices=["adam", "rmsprop", "adadelta", "agcd", "sgd"],
     )
     parser.add_argument(
