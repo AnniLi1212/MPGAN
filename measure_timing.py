@@ -3,7 +3,6 @@ from torch import Tensor
 import numpy as np
 
 import train, setup_training
-import metrics
 import jetnet
 from jetnet.datasets import JetNet
 from jetnet.datasets.normalisations import FeaturewiseLinearBounded, FeaturewiseLinear
@@ -12,12 +11,20 @@ import datetime
 
 import os
 import time
+import traceback
 import pickle
+import json
 
-names = ["162_g_128D_nh8", "120_g_mpgan_redo_2"]
-models = ["gapt", "mpgan"]
+# model path, type, and number of particles
+path = '/graphganvol/vk/g_128D_nh-8_n-2000/outputs/nz_condGD_isab-nz2'
+name = path.split('/')[-1]
+output_dir = f'/graphganvol/anni/timing'
+dataset = '/graphganvol/MPGAN/datasets/'
 
-mpgan_dir = "/graphganvol/MPGAN/"
+model = 'gapt'
+num_particles = 30
+jet_type = 'g'
+
 # real_efps = np.load(f"{mpgan_dir}/efps/{args.jets}.npy")
 
 # models_dir = f"{mpgan_dir}/outputs/{args.name}/models/"
@@ -28,6 +35,7 @@ mpgan_dir = "/graphganvol/MPGAN/"
 
 # kpd_path = f"{losses_dir}/kpd.txt"
 
+# prepare jet data
 feature_maxes = JetNet.fpnd_norm.feature_maxes
 feature_maxes = feature_maxes + [1]
 
@@ -37,11 +45,11 @@ particle_norm = FeaturewiseLinearBounded(
     feature_maxes=feature_maxes,
 )
 
-jet_norm = FeaturewiseLinear(feature_scales=1.0 / 30)
+jet_norm = FeaturewiseLinear(feature_scales=1.0 / num_particles)
 data_args = {
-    "jet_type": "g",
-    "data_dir": f"{mpgan_dir}/datasets/",
-    "num_particles": 30,
+    "jet_type": jet_type,
+    "data_dir": dataset,
+    "num_particles": num_particles,
     "particle_features": None,
     "jet_features": "num_particles",
     "jet_normalisation": jet_norm,
@@ -49,6 +57,9 @@ data_args = {
 }
 X = JetNet(**data_args, split="valid")
 real_jf = X.jet_data
+
+def count_trainable_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def gen_multi_batch(
@@ -116,43 +127,38 @@ batch_sizes = [
     18432,
     22528,
 ]
-timings = {}
+timings = []
+# load args
+with open(f"{path}/{name}_args.txt", "r") as f:
+    model_args = setup_training.objectview(eval(f.read()))
 
-for i, name in enumerate(names):
-    print(name)
-    output_dir = f"{mpgan_dir}/outputs/{name}/"
-    timings[name] = []
+G = setup_training.models(model_args, gen_only=True).to("cuda")
 
-    # load args
-    with open(f"{output_dir}/{name}_args.txt", "r") as f:
-        model_args = setup_training.objectview(eval(f.read()))
+G.eval()
 
-    G = setup_training.models(model_args, gen_only=True).to("cuda")
-    G.eval()
-
-    for batch_size in batch_sizes:
-        print(batch_size)
-        try:
-            t = gen_jets = gen_multi_batch(
-                {
-                    "embed_dim": model_args.gapt_embed_dim,
-                    "lfc": False,
-                    "latent_node_size": model_args.latent_node_size,
-                },
-                G,
-                batch_size,
-                50000,
-                30,
-                model=models[i],
-                labels=real_jf[:50000],
-            )
-            timings[name].append([batch_size, t])
-        except:
-            print(f"error on batch size {batch_size}")
-            break
+num_params = count_trainable_parameters(G)
+print(f"Total number of trainable parameters: {num_params}")
 
 
-import json
+for batch_size in batch_sizes:
+    print(batch_size)
+    try:
+        t = gen_jets = gen_multi_batch(
+            model_args.__dict__,
+            G,
+            batch_size,
+            50000,
+            num_particles,
+            model=model,
+            labels=real_jf[:50000],
+        )
+        timings.append([batch_size, t])
 
-with open(f"{mpgan_dir}/outputs/timings.json", "w") as f:
+    except Exception as e:
+        print(f"Error on batch size {batch_size}: {e}")
+        traceback.print_exc()
+        break
+
+
+with open(f"{output_dir}/{name}_timing.json", "w") as f:
     json.dump(timings, f)
