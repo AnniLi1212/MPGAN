@@ -150,6 +150,7 @@ class MAB(nn.Module):
         ff_output_dim: int,  # TODO: how can this be different from embed_dim?
         ff_layers: list = None,
         use_custom_mab: bool = False,
+        conditioning: bool = False,
         layer_norm: bool = False,
         spectral_norm: bool = False,
         dropout_p: float = 0.0,
@@ -171,6 +172,8 @@ class MAB(nn.Module):
             )
         else:
             self.attention = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
+        
+        self.conditioning = conditioning
 
         self.ff = LinearNet(
             ff_layers,
