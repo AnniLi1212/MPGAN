@@ -191,7 +191,7 @@ class MAB(nn.Module):
             self.norm2 = nn.LayerNorm(ff_output_dim)
 
         self.dropout = nn.Dropout(p=dropout_p)
-
+    '''
     def forward(self, x: Tensor, y: Tensor, y_mask: Tensor = None):
         if y_mask is not None:
             # torch.nn.MultiheadAttention needs a mask of shape [batch_size * num_heads, N, N]
@@ -206,7 +206,22 @@ class MAB(nn.Module):
             x = self.norm2(x)
         x = self.dropout(x)
         return x
-
+    '''
+    def forward(self, x: Tensor, y: Tensor, y_mask: Tensor = None, z: Tensor = None):
+        if y_mask is not None:
+            # torch.nn.MultiheadAttention needs a mask of shape [batch_size * num_heads, N, N]
+            y_mask = torch.repeat_interleave(y_mask, self.num_heads, dim=0)
+        # Concatenate q,k,v inputs with conditioning vector if self.conditioning==True
+        # Linearly project output (dim(x+z')) back to dim(x)
+        if self.conditioning:
+            assert z is not None
+            # Concat z with query
+            x_ = torch.cat((x, z.unsqueeze(1).repeat(1, x.shape[1], 1)), dim=2)
+            # Concat z with key/value
+            y_ = torch.cat((y, z.unsqueeze(1).repeat(1, y.shape[1], 1)), dim=2)
+            x = x + self.attn_ff(self.attention(x_, y_, y_, attn_mask=y_mask, need_weights=False)[0])
+        else:
+            x = x + self.attention(x, y, y, attn_mask=y_mask, need_weights=False)[0]
 
 # Adapted from https://github.com/juho-lee/set_transformer/blob/master/modules.py
 class SAB(nn.Module):
