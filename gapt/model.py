@@ -174,6 +174,8 @@ class MAB(nn.Module):
             self.attention = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
         
         self.conditioning = conditioning
+        if self.conditioning:
+            self.attn_ff   = nn.Linear(embed_dim, ff_output_dim)
 
         self.ff = LinearNet(
             ff_layers,
@@ -197,7 +199,18 @@ class MAB(nn.Module):
             # torch.nn.MultiheadAttention needs a mask of shape [batch_size * num_heads, N, N]
             y_mask = torch.repeat_interleave(y_mask, self.num_heads, dim=0)
 
-        x = x + self.attention(x, y, y, attn_mask=y_mask, need_weights=False)[0]
+        ##############changed###############
+        if self.conditioning:
+            assert z is not None
+            # Concat z with query
+            x_ = torch.cat((x, z.unsqueeze(1).repeat(1, x.shape[1], 1)), dim=2)
+            # Concat z with key/value
+            y_ = torch.cat((y, z.unsqueeze(1).repeat(1, y.shape[1], 1)), dim=2)
+            x = x + self.attn_ff(self.attention(x_, y_, y_, attn_mask=y_mask, need_weights=False)[0])
+        else:
+            ##############changed###############
+
+            x = x + self.attention(x, y, y, attn_mask=y_mask, need_weights=False)[0]
         if self.layer_norm:
             x = self.norm1(x)
         x = self.dropout(x)
@@ -530,7 +543,7 @@ class GAPT_D(nn.Module):
         sab_args = {
             "embed_dim": embed_dim,
             # "learn_anchor_from_global_noise": self.learn_anchor_from_global_noise,
-            "num_inds": num_isab_nodes,
+            # "num_inds": num_isab_nodes,
             # "global_noise_feat_dim": embed_dim,
             "ff_layers": sab_fc_layers,
             "ff_output_dim": ff_output_dim,
