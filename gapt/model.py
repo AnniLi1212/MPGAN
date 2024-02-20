@@ -247,8 +247,8 @@ class ISAB(nn.Module):
     def __init__(
         self,
         embed_dim,
-        learn_anchor_from_global_noise=False,
         num_inds,
+        learn_anchor_from_global_noise=False,
         global_noise_feat_dim=None,
         **mab_args,
     ):
