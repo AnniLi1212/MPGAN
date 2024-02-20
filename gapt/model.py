@@ -209,17 +209,17 @@ class MAB(nn.Module):
 
 # Adapted from https://github.com/juho-lee/set_transformer/blob/master/modules.py
 class SAB(nn.Module):
-    def __init__(self, num_inds: int, **mab_args):
+    def __init__(self, **mab_args):
         super(SAB, self).__init__()
         self.mab = MAB(**mab_args)
-        self.num_inds = num_inds
+        ######self.num_inds = num_inds
 
     def forward(self, x: Tensor, mask: Tensor = None, z: Tensor = None):
         if mask is not None:
             # torch.nn.MultiheadAttention needs a mask vector for each target node
             # i.e. reshaping from [B, N, 1] -> [B, N, N]
-            ########mask = mask.transpose(-2, -1).repeat((1, mask.shape[-2], 1))
-            mask = mask.transpose(-2, -1).repeat((1, 10, 1))
+            mask = mask.transpose(-2, -1).repeat((1, mask.shape[-2], 1))
+           ######## mask = mask.transpose(-2, -1).repeat((1, 10, 1))
 
         return self.mab(x, x, mask, z)
 
@@ -530,7 +530,7 @@ class GAPT_D(nn.Module):
         sab_args = {
             "embed_dim": embed_dim,
             # "learn_anchor_from_global_noise": self.learn_anchor_from_global_noise,
-            # "num_inds": num_isab_nodes,
+            "num_inds": num_isab_nodes,
             # "global_noise_feat_dim": embed_dim,
             "ff_layers": sab_fc_layers,
             "ff_output_dim": ff_output_dim,
