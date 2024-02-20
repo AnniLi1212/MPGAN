@@ -222,6 +222,14 @@ class MAB(nn.Module):
             x = x + self.attn_ff(self.attention(x_, y_, y_, attn_mask=y_mask, need_weights=False)[0])
         else:
             x = x + self.attention(x, y, y, attn_mask=y_mask, need_weights=False)[0]
+        if self.layer_norm:
+            x = self.norm1(x)
+        x = self.dropout(x)
+        x = x + self.ff(x)
+        if self.layer_norm:
+            x = self.norm2(x)
+        x = self.dropout(x)
+        return x
 
 # Adapted from https://github.com/juho-lee/set_transformer/blob/master/modules.py
 class SAB(nn.Module):
