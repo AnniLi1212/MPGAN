@@ -248,7 +248,7 @@ class ISAB(nn.Module):
         self,
         embed_dim,
         learn_anchor_from_global_noise=False,
-        num_inds=1,
+        num_inds=10,
         global_noise_feat_dim=None,
         **mab_args,
     ):
