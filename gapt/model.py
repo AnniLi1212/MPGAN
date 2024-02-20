@@ -219,7 +219,7 @@ class SAB(nn.Module):
             # torch.nn.MultiheadAttention needs a mask vector for each target node
             # i.e. reshaping from [B, N, 1] -> [B, N, N]
             ########mask = mask.transpose(-2, -1).repeat((1, mask.shape[-2], 1))
-            mask = mask.transpose(-2, -1).repeat((1, self.num_inds, 1))
+            mask = mask.transpose(-2, -1).repeat((1, 10, 1))
 
         return self.mab(x, x, mask, z)
 
