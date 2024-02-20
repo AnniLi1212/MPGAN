@@ -247,8 +247,8 @@ class ISAB(nn.Module):
     def __init__(
         self,
         embed_dim,
-        num_inds,
         learn_anchor_from_global_noise=False,
+        num_inds=1,
         global_noise_feat_dim=None,
         **mab_args,
     ):
@@ -347,6 +347,7 @@ class GAPT_G(nn.Module):
         self.n_normalized = n_normalized
         self.block_residual = block_residual
         self.learn_anchor_from_global_noise = learn_anchor_from_global_noise
+        self.num_isab_nodes = num_isab_nodes
         # Learnable gaussian noise for sampling initial set
         if self.learnable_init_noise:
             self.mu = nn.Parameter(torch.randn(self.num_particles, init_noise_dim))
@@ -509,6 +510,7 @@ class GAPT_D(nn.Module):
         self.n_normalized = n_normalized
         self.use_ise = use_ise
         self.block_residual = block_residual
+        self.num_isab_nodes = num_isab_nodes
         self.learn_anchor_from_global_noise = learn_anchor_from_global_noise
         # MLP for processing # particles
         cond_net_input_dim = 2 * embed_dim
