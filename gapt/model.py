@@ -209,15 +209,17 @@ class MAB(nn.Module):
 
 # Adapted from https://github.com/juho-lee/set_transformer/blob/master/modules.py
 class SAB(nn.Module):
-    def __init__(self, **mab_args):
+    def __init__(self, num_inds: int, **mab_args):
         super(SAB, self).__init__()
         self.mab = MAB(**mab_args)
+        self.num_inds = num_inds
 
     def forward(self, x: Tensor, mask: Tensor = None, z: Tensor = None):
         if mask is not None:
             # torch.nn.MultiheadAttention needs a mask vector for each target node
             # i.e. reshaping from [B, N, 1] -> [B, N, N]
-            mask = mask.transpose(-2, -1).repeat((1, mask.shape[-2], 1))
+            ########mask = mask.transpose(-2, -1).repeat((1, mask.shape[-2], 1))
+            mask = mask.transpose(-2, -1).repeat((1, self.num_inds, 1))
 
         return self.mab(x, x, mask, z)
 
