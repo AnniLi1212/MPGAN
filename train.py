@@ -6,6 +6,7 @@ from jetnet.datasets.normalisations import FeaturewiseLinearBounded, Featurewise
 import setup_training
 from mpgan import augment, mask_manual
 import plotting
+import metrics
 
 import torch
 from torch import Tensor
@@ -49,9 +50,9 @@ def main():
         "jet_type": args.jets,
         "data_dir": args.datasets_path,
         "num_particles": args.num_hits,
-        "particle_features": JetNet.ALL_PARTICLE_FEATURES
+        "particle_features": JetNet.all_particle_features
         if args.mask
-        else JetNet.ALL_PARTICLE_FEATURES[:-1],
+        else JetNet.all_particle_features[:-1],
         "jet_features": "num_particles"
         if (args.clabels or args.mask_c or args.gapt_mask)
         else None,
@@ -129,7 +130,7 @@ def get_gen_noise(
                 )
             )
     elif model == "gapt":
-        noise = dist.sample((num_samples, num_particles, model_args["init_noise_dim"]))
+        noise = dist.sample((num_samples, num_particles, model_args["embed_dim"]))
     elif model == "rgan" or model == "graphcnngan":
         noise = dist.sample((num_samples, model_args["latent_dim"]))
     elif model == "treegan":
@@ -209,12 +210,8 @@ def gen(
                 model_args, num_samples, num_particles, model, device, noise_std
             )
 
-    global_noise = (
-        torch.randn(num_samples, model_args["global_noise_dim"]).to(device)
-        if G.noise_conditioning
-        else None
-    )
-    # print(noise.shape)
+    global_noise = torch.randn(num_samples, model_args['global_noise_dim']).to(device) if G.noise_conditioning else None
+
     gen_data = G(noise, labels, global_noise)
 
     if "mask_manual" in extra_args and extra_args["mask_manual"]:
@@ -574,6 +571,7 @@ def evaluate(
             exclude_zeros=True,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
+            average_over_features=False,
             return_std=True,
         )
         losses["w1p"].append(np.concatenate((w1pm, w1pstd)))
@@ -595,6 +593,7 @@ def evaluate(
             use_particle_masses=False,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
+            average_over_efps=False,
             return_std=True,
             efp_jobs=efp_jobs,
         )
@@ -611,11 +610,15 @@ def evaluate(
 
     if "fpd" in losses:
         logging.info("FPD")
-        losses["fpd"].append(evaluation.fpd(real_efps, gen_efps))
+        losses["fpd"].append(metrics.fpd_infinity(real_efps, gen_efps))
 
     if "kpd" in losses:
         logging.info("KPD")
-        losses["kpd"].append(evaluation.kpd(real_efps, gen_efps, num_threads=2))
+        if efp_jobs is not None and efp_jobs > 2:
+            num_threads = efp_jobs - 2
+        else:
+            num_threads = 1
+        losses["kpd"].append(metrics.mmd(real_efps, gen_efps, num_threads=num_threads))
 
 
 def make_plots(
@@ -710,7 +713,6 @@ def eval_save_plot(
     best_epoch,
     **extra_args,
 ):
-    print("evaaaaaal")
     G.eval()
     D.eval()
     save_models(D, G, D_optimizer, G_optimizer, args.models_path, epoch, multi_gpu=args.multi_gpu)
