@@ -248,7 +248,7 @@ class ISAB(nn.Module):
         self,
         embed_dim,
         learn_anchor_from_global_noise=False,
-        num_inds=1,
+        num_inds,
         global_noise_feat_dim=None,
         **mab_args,
     ):
@@ -257,7 +257,7 @@ class ISAB(nn.Module):
         # self.num_inds = num_inds
         # nn.init.xavier_uniform_(self.I)
         self.embed_dim = embed_dim
-        self.num_inds = num_inds
+        self.num_inds = num_inds,
         self.learn_anchor_from_global_noise = learn_anchor_from_global_noise
         if learn_anchor_from_global_noise:
             self.noise_to_anchor_net = LinearNet(
