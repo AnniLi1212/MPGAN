@@ -6,7 +6,6 @@ from jetnet.datasets.normalisations import FeaturewiseLinearBounded, Featurewise
 import setup_training
 from mpgan import augment, mask_manual
 import plotting
-#import metrics
 
 import torch
 from torch import Tensor
@@ -571,7 +570,7 @@ def evaluate(
             exclude_zeros=True,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
-            average_over_features=False,
+            #average_over_features=False,
             return_std=True,
         )
         losses["w1p"].append(np.concatenate((w1pm, w1pstd)))
@@ -593,7 +592,7 @@ def evaluate(
             use_particle_masses=False,
             num_eval_samples=num_w1_eval_samples,
             num_batches=real_jets.shape[0] // num_w1_eval_samples,
-            average_over_efps=False,
+            #average_over_efps=False,
             return_std=True,
             efp_jobs=efp_jobs,
         )
@@ -607,18 +606,13 @@ def evaluate(
                 batch_size=fpnd_batch_size,
             )
         )
-
     if "fpd" in losses:
         logging.info("FPD")
-        losses["fpd"].append(metrics.fpd_infinity(real_efps, gen_efps))
+        losses["fpd"].append(evaluation.fpd(real_efps, gen_efps))
 
     if "kpd" in losses:
         logging.info("KPD")
-        if efp_jobs is not None and efp_jobs > 2:
-            num_threads = efp_jobs - 2
-        else:
-            num_threads = 1
-        losses["kpd"].append(metrics.mmd(real_efps, gen_efps, num_threads=num_threads))
+        losses["kpd"].append(evaluation.kpd(real_efps, gen_efps, num_threads=2))
 
 
 def make_plots(
@@ -713,6 +707,8 @@ def eval_save_plot(
     best_epoch,
     **extra_args,
 ):
+    
+    print("Evaluation Started")
     G.eval()
     D.eval()
     save_models(D, G, D_optimizer, G_optimizer, args.models_path, epoch, multi_gpu=args.multi_gpu)
