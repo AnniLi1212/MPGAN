@@ -6,7 +6,7 @@ from jetnet.datasets.normalisations import FeaturewiseLinearBounded, Featurewise
 import setup_training
 from mpgan import augment, mask_manual
 import plotting
-import metrics
+#import metrics
 
 import torch
 from torch import Tensor
