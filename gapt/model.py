@@ -149,6 +149,7 @@ class MAB(nn.Module):
         num_heads: int,
         ff_output_dim: int,  # TODO: how can this be different from embed_dim?
         ff_layers: list = None,
+        conditioning: bool = False,
         use_custom_mab: bool = False,
         layer_norm: bool = False,
         spectral_norm: bool = False,
